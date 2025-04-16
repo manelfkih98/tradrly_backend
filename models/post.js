@@ -32,7 +32,10 @@ const PostSchema = new mongoose.Schema({
         type: String, 
         required: true,
       },
-      password:{type:String,require}
+      password:{type:String,require},
+      testCompleted: { type: Boolean, default: false }, 
+
+
     
 }, { timestamps: true });  
 

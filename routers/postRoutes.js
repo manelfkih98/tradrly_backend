@@ -1,6 +1,6 @@
 const express = require("express");
 const upload = require("../middleware/upload"); 
-const { addPost,getAllPostStage,getAllPostJob,getPostsByJobId,refuser,accepter,addPostWithoutOffre,getPostWithoutOffre ,refuserDemande,accepterDemande,loginCandidat} = require("../controllers/postController");
+const { addPost,getAllPostStage,getAllPostJob,getPostsByJobId,refuser,accepter,addPostWithoutOffre,getPostWithoutOffre ,refuserDemande,accepterDemande,loginCandidat,markTestCompleted,verifier} = require("../controllers/postController");
 
 const router=express.Router()
 
@@ -16,7 +16,8 @@ router.post("/addPost", addPost);
  router.post("/refuserDemande/:id",refuserDemande)
  router.post("/accepterDemande/:id",accepterDemande)
  router.post("/connecter",loginCandidat)
-
+ router.put("/mark-completed/:id", markTestCompleted);
+router.get("/verifier/:id",verifier)
 
 
 

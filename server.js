@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 const express = require("express");
 const connectDB = require('./config/database');
 const cors = require('cors');
@@ -14,6 +15,7 @@ const propoRoutes = require("./routers/propositionRoutes");
 const questionRoutes = require('./routers/questionRoutes');
 const qcmRoutes = require('./routers/qcmRoutes');
 const teamMemberRoutes = require('./routers/teamMemberRoutes');
+const contactRoutes = require('./routers/contactRoutes');
 const app = express();
 app.use(cookieParser());
 const path = require('path');
@@ -36,6 +38,7 @@ app.use(`${BASE_URL}/propos`, propoRoutes);
 app.use(`${BASE_URL}/question`, questionRoutes);
 app.use(`${BASE_URL}/qcm`, qcmRoutes);
 app.use(`${BASE_URL}/team`, teamMemberRoutes);
+app.use(`${BASE_URL}/contact`, contactRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.listen(PORT, () => {
     console.log(`Serveur démarré sur le port ${PORT}, accessible à http://localhost:${PORT}${BASE_URL}`);

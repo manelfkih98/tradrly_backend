@@ -1,5 +1,5 @@
 const express =require('express')
-const {addDep,getAllDeps,getDepById,updateDep,deleteDep}=require("../controllers/departementControllr")
+const {addDep,getAllDeps,getDepById,updateDep,deleteDep}=require("../controllers/departementController")
 const auth = require('../middleware/auth');
 const router=express.Router()
 

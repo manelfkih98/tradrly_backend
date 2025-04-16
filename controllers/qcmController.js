@@ -49,28 +49,31 @@ exports.generatQcm = async (req, res) => {
     if (!postId) {
       return res.status(400).json({ message: "L'ID du post est requis." });
     }
+
     const post = await Post.findById(postId).populate("jobId");
+
     if (!post) {
       return res.status(404).json({ message: "Post non trouvé." });
     }
-    const departementFind = await Departement.findById({
-      _id: post.jobId.departement,
-    });
-    if (!post) {
-      return res
-        .status(404)
-        .json({ message: "Département non trouvé pour ce post." });
+
+    const departementFind = await Departement.findById(post.jobId.departement);
+
+    if (!departementFind) {
+      return res.status(404).json({ message: "Département non trouvé pour ce post." });
     }
+
     const questions = await question.aggregate([
       { $match: { departement: departementFind._id } },
       { $sample: { size: 5 } },
     ]);
 
     if (!questions.length) {
-      return res
-        .status(404)
-        .json({ message: "Aucune question trouvée pour ce département." });
+      return res.status(404).json({
+        message: "Aucune question trouvée pour ce département.",
+      });
     }
+
+    // Création du QCM
     const newQCM = new QCM({
       post_id: postId,
       questions: questions.map((q) => q._id),
@@ -78,8 +81,10 @@ exports.generatQcm = async (req, res) => {
     });
 
     const savedQCM = await newQCM.save();
+
     const populatedQCM = await QCM.findById(savedQCM._id).populate("questions");
 
+    // Envoi de l'email
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -92,28 +97,31 @@ exports.generatQcm = async (req, res) => {
       from: "manelfkih13@gmail.com",
       to: post.email,
       subject: `Réponse à votre candidature pour le poste ${post.jobId.titre}`,
-      html: `Bonjour ${post.name},<br><br>
-          Nous vous remercions de l'intérêt que vous portez à notre société « Tradrly » en postulant au poste de ${post.jobId.titre}. Après une étude attentive de votre candidature, nous avons le regret de vous informer que nous ne pouvons pas y donner une suite favorable.<br><br>
-          Nous vous remercions néanmoins pour l’intérêt que vous portez à notre entreprise et vous souhaitons plein succès dans vos recherches.<br><br>
-          Veuillez trouver ci-dessous votre mot de passe généré pour la plateforme Tradrly :<br><br>
-          email : ${post.email}<br><br>
-          Mot de passe : ${post.password}<br><br>
-         
-          <b>Cordialement,</b><br>
-          L'équipe de recrutement<br>
-          Tradrly<br><br>
-          <a href="http://localhost:3000/loginCandidat" target="_blank">Cliquez ici pour accéder à votre test</a>`,
+      html: `
+        Bonjour ${post.name},<br><br>
+        Nous vous remercions de l'intérêt que vous portez à notre société « Tradrly » en postulant au poste de ${post.jobId.titre}. 
+        Après une étude attentive de votre candidature, nous avons le regret de vous informer que nous ne pouvons pas y donner une suite favorable.<br><br>
+        Nous vous remercions néanmoins pour l’intérêt que vous portez à notre entreprise et vous souhaitons plein succès dans vos recherches.<br><br>
+        Veuillez trouver ci-dessous votre mot de passe généré pour la plateforme Tradrly :<br><br>
+        <b>Email :</b> ${post.email}<br>
+        <b>Mot de passe :</b> ${post.password}<br><br>
+        <b>Cordialement,</b><br>
+        L'équipe de recrutement<br>
+        Tradrly<br><br>
+        <a href="http://localhost:3000/loginCandidat" target="_blank">Cliquez ici pour accéder à votre test</a>
+      `,
     };
 
     const info = await transporter.sendMail(mailOptions);
-    res
-      .status(200)
-      .json({ message: "Email d'acceptation envoyé avec succès!", info });
 
-    res.status(201).json(populatedQCM);
+    return res.status(201).json({
+      message: "QCM généré et email envoyé avec succès !",
+      qcm: populatedQCM,
+      emailInfo: info,
+    });
   } catch (error) {
     console.error("Erreur lors de la création du QCM :", error);
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+    return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
 exports.getAllQcm = async (req, res) => {

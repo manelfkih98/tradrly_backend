@@ -3,9 +3,11 @@ const Departements = require("../models/departement");
 
 exports.addProject = async (req, res) => {
   try {
-    const { name_project, description_project, departement_name } = req.body;
+    const { name_project, date_creation, departement_name } = req.body;
+    const image = req.file ? req.file.path.replace(/\\/g, "/") : null;
 
-    if (!name_project || !description_project || !departement_name) {
+
+    if (!name_project || !date_creation || !departement_name) {
       return res.status(400).json({ message: "Tous les champs sont requis." });
     }
     const departement = await Departements.findOne({
@@ -16,7 +18,8 @@ exports.addProject = async (req, res) => {
     }
     const newProject = new Project({
       name_project: name_project,
-      description_project: description_project,
+      date_creation: date_creation,
+      image: image,
       departementId: departement._id,
     });
 
@@ -38,7 +41,12 @@ exports.getAllProject = async (req, res) => {
   try {
     const projects = await Project.find().populate('departementId');
 
-    res.status(200).json({ projects });
+    const formattedProjects = projects.map((project) => ({
+      ...project._doc,
+      image: `${req.protocol}://${req.get("host")}/${project.image.replace(/\\/g, "/")}`,
+    }));
+
+    res.status(200).json({ projects: formattedProjects });
   } catch (error) {
     res.status(500).json({ message: "Erreur serveur", error });
   }

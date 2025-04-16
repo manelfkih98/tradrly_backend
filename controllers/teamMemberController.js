@@ -3,36 +3,41 @@ const TeamMember = require('../models/teamMember');
 // Create a new team member
 exports.createTeamMember = async (req, res) => {
   try {
-    const { name, title, quote ,linkedin} = req.body;
-    console.log(req.body);
-    const image = req.file ? req.file.path : null;
-
+    const { name, title, quote, linkedin } = req.body;
+    const image = req.file ? req.file.path.replace(/\\/g, "/") : null;
     if (!name || !title || !quote || !image || !linkedin) {
-      return res.status(400).json({ success: false, message: 'All fields are required' });
+      return res.status(400).json({
+        success: false,
+        message: "All fields are required",
+      });
     }
 
     const teamMember = new TeamMember({
       name,
       title,
-      image, 
+      image,
       quote,
-      linkedin
+      linkedin,
     });
 
+    console.log("✅ member:", teamMember);
+
     await teamMember.save();
+
     res.status(201).json({
       success: true,
-      message: 'Team member created successfully',
-      data: teamMember
+      message: "Team member created successfully",
+      data: teamMember,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: 'Error creating team member',
-      error: error.message
+      message: "Error creating team member",
+      error: error.message,
     });
   }
 };
+
 
 // Get all team members
 exports.getAllTeamMembers = async (req, res) => {
@@ -77,30 +82,44 @@ exports.getTeamMemberById = async (req, res) => {
 // Update a team member
 exports.updateTeamMember = async (req, res) => {
   try {
-    // Validate ID format
     if (!req.params.id.match(/^[0-9a-fA-F]{24}$/)) {
       return res.status(400).json({ success: false, message: 'Invalid ID format' });
     }
 
-    const { name, title, image, quote } = req.body;
+    const { name, title, quote, linkedin } = req.body;
     const teamMember = await TeamMember.findById(req.params.id);
 
     if (!teamMember) {
       return res.status(404).json({ success: false, message: 'Team member not found' });
     }
 
-    // Update fields only if provided
+    // Mise à jour des champs texte
     teamMember.name = name || teamMember.name;
     teamMember.title = title || teamMember.title;
-    teamMember.image = image || teamMember.image;
     teamMember.quote = quote || teamMember.quote;
+    teamMember.linkedin = linkedin || teamMember.linkedin;
+
+    // Si une nouvelle image est envoyée
+    if (req.file) {
+      teamMember.image = `uploads/${req.file.filename}`; // ou selon ton chemin de stockage
+    }
 
     await teamMember.save();
-    res.status(200).json({ success: true, message: 'Team member updated successfully', data: teamMember });
+
+    res.status(200).json({
+      success: true,
+      message: 'Team member updated successfully',
+      data: teamMember,
+    });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Error updating team member', error: error.message });
+    res.status(500).json({
+      success: false,
+      message: 'Error updating team member',
+      error: error.message,
+    });
   }
 };
+
 
 // Delete a team member
 exports.deleteTeamMember = async (req, res) => {

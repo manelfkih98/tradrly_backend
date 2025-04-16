@@ -5,8 +5,11 @@ const ProjectSchema=new mongoose.Schema({
     type:String,
     require:true
   },
-  description_project :{
-
+  date_creation :{
+    type:Date,
+    require:true
+  },
+  image:{
     type:String,
     require:true
   },

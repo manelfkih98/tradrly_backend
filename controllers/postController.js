@@ -5,9 +5,11 @@ const path = require("path");
 const multer = require("multer");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
+
 
 const auth = new google.auth.GoogleAuth({
-  keyFile: "C:/tradrly/meniproject.json",
+  keyFile: "C:/teest_tradrly/meniproject.json",
   scopes: ["https://www.googleapis.com/auth/drive.file"],
 });
 const drive = google.drive({ version: "v3", auth });
@@ -36,7 +38,7 @@ async function uploadFileToDrive(filePath, fileName) {
       },
     });
 
-    // Rendre le fichier accessible à tous
+    
     await drive.permissions.create({
       fileId: response.data.id,
       requestBody: {
@@ -45,7 +47,7 @@ async function uploadFileToDrive(filePath, fileName) {
       },
     });
 
-    // Récupérer le lien de visualisation
+   
     const result = await drive.files.get({
       fileId: response.data.id,
       fields: "webViewLink",
@@ -87,7 +89,9 @@ exports.addPost = async (req, res) => {
 
       const googleDriveCvUrl = await uploadFileToDrive(filePath, fileName);
 
-      const password = generatePassword(12);
+      const password = generatePassword(5);
+      const salt = await bcrypt.genSalt(5);
+      const hashedPassword = await bcrypt.hash(password, salt);
 
       const newPost = new Post({
         name,
@@ -97,7 +101,8 @@ exports.addPost = async (req, res) => {
         cv_local_url: localCvUrl,
         cv_google_drive_url: googleDriveCvUrl,
         jobId,
-        password,
+        password: hashedPassword,
+        
       });
 
       await newPost.save();
@@ -204,7 +209,8 @@ exports.refuser = async (req, res) => {
       service: "gmail",
       auth: {
         user: "manelfkih123@gmail.com",
-        pass: "uwze prbc lohc kfzh",
+        pass: process.env.GMAIL_APP_PASSWORD,
+
       },
     });
 
@@ -246,33 +252,38 @@ exports.accepter = async (req, res) => {
         .status(404)
         .json({ message: "Offre d'emploi associée non trouvée." });
     }
+    if (poste.testCompleted) {
+      return res
+        .status(403)
+        .json({ message: "Vous avez déjà passé le test." });
+    }
 
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: "manelfkih123@gmail.com",
-        pass: "uwze prbc lohc kfzh",
+        pass: process.env.GMAIL_APP_PASSWORD,
       },
     });
 
     const mailOptions = {
-      from: "manelfkih13@gmail.com",
+      from: "manelfkih123@gmail.com",
       to: poste.email,
       subject: `Réponse à votre candidature pour le poste ${poste.jobId.titre}`,
       html: `Bonjour ${poste.name},<br><br>
-      Nous vous remercions de l'intérêt que vous portez à notre société « Tradrly » en postulant au poste de ${poste.jobId.titre}. Après une étude attentive de votre candidature, nous avons le regret de vous informer que nous ne pouvons pas y donner une suite favorable.<br><br>
-      Nous vous remercions néanmoins pour l’intérêt que vous portez à notre entreprise et vous souhaitons plein succès dans vos recherches.<br><br>
+      Nous vous remercions de l'intérêt que vous portez à notre société « Tradrly » en postulant au poste de ${poste.jobId.titre}. Après une étude attentive de votre candidature, nous vous invitons à passer un test pour évaluer vos compétences.<br><br>
       Veuillez trouver ci-dessous votre mot de passe généré pour la plateforme Tradrly :<br><br>
       Mot de passe : ${poste.password}<br><br>
       <b>Cordialement,</b><br>
       L'équipe de recrutement<br>
       Tradrly<br><br>
-      <a href="http://localhost:3000/" target="_blank">Cliquez ici pour accéder à votre test</a>`,
+      <a href="http://localhost:3000/test/${req.params.id}" target="_blank">Cliquez ici pour accéder à votre test</a>`,
     };
+
     const info = await transporter.sendMail(mailOptions);
     res
       .status(200)
-      .json({ message: "Email d'acceptation envoyé avec succès!", info });
+      .json({ message: "Email d'invitation au test envoyé avec succès!", info });
   } catch (error) {
     console.error("Erreur lors de l'envoi de l'email:", error);
     res
@@ -405,10 +416,8 @@ exports.accepterDemande = async (req, res) => {
       .status(200)
       .json({ message: "Email d'acceptation envoyé avec succès!", info });
   } catch (error) {
-    console.error("Erreur lors de l'envoi de l'email:", error);
-    res
-      .status(500)
-      .json({ message: "Erreur lors de l'envoi de l'email", error });
+    console.error(error);
+    return res.status(500).json({ message: "Erreur serveur" });
   }
 };
 exports.refuserDemande = async (req, res) => {
@@ -475,4 +484,30 @@ exports.loginCandidat = async (req, res) => {
     res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+// Marque le test comme complété
+exports.markTestCompleted = async (req, res) => {
+  try {
+    const poste = await Post.findById(req.params.id);
+    if (!poste) {
+      return res.status(404).json({ message: "Candidature non trouvée." });
+    }
+    poste.testCompleted = true;
+    await poste.save();
+    res.status(200).json({ message: "Test marqué comme complété." });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la mise à jour du test", error });
+  }
+};
 
+// Vérifie si le test a été fait
+exports.verifier = async (req, res) => {
+  try {
+    const poste = await Post.findById(req.params.id);
+    if (!poste) {
+      return res.status(404).json({ message: "Candidature non trouvée." });
+    }
+    res.status(200).json(!poste.testCompleted); // true si PAS encore complété
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la récupération du post", error });
+  }
+};
