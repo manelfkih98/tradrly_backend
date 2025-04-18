@@ -6,7 +6,7 @@ const multer = require("multer");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-
+const jwt = require('jsonwebtoken');
 
 const auth = new google.auth.GoogleAuth({
   keyFile: "C:/teest_tradrly/meniproject.json",
@@ -89,9 +89,9 @@ exports.addPost = async (req, res) => {
 
       const googleDriveCvUrl = await uploadFileToDrive(filePath, fileName);
 
-      const password = generatePassword(5);
+      /*const password = generatePassword(5);
       const salt = await bcrypt.genSalt(5);
-      const hashedPassword = await bcrypt.hash(password, salt);
+      const hashedPassword = await bcrypt.hash(password, salt);*/
 
       const newPost = new Post({
         name,
@@ -101,7 +101,8 @@ exports.addPost = async (req, res) => {
         cv_local_url: localCvUrl,
         cv_google_drive_url: googleDriveCvUrl,
         jobId,
-        password: hashedPassword,
+        password: "",
+       // password: hashedPassword,
         
       });
 
@@ -215,24 +216,46 @@ exports.refuser = async (req, res) => {
     });
 
     const mailOptions = {
-      from: "manelfkih13@gmail.com",
+      from: `"Tradrly Recrutement" <${process.env.EMAIL_USER}>`,
+   
       to: poste.email,
-      subject: `Réponse à votre candidature pour le poste ${poste.jobId.titre}`,
-      text: `Bonjour ${poste.name},
-
-       Nous vous remercions de l'intérêt que vous portez à notre société « Tradrly » en postulant au poste de ${poste.jobId.titre}. Après une étude attentive de votre candidature, nous avons le regret de vous informer que nous ne pouvons pas y donner une suite favorable.
-
-      Nous vous remercions néanmoins pour l’intérêt que vous portez à notre entreprise et vous souhaitons plein succès dans vos recherches.
-
-      Cordialement,
-
-      L'équipe de recrutement
-      Tradrly`,
+      subject: `Suite à votre candidature pour le poste de ${poste.jobId.titre}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; line-height: 1.6;">
+          <p>Bonjour <strong>${poste.name}</strong>,</p>
+    
+          <p>
+            Nous vous remercions sincèrement pour l’intérêt que vous avez porté à notre entreprise <strong>Tradrly</strong> 
+            en postulant au poste de <strong>${poste.jobId.titre}</strong>.
+          </p>
+    
+          <p>
+            Après un examen attentif de votre candidature, nous avons le regret de vous informer que votre profil n’a pas été retenu pour la suite du processus de recrutement.
+          </p>
+    
+          <p>
+            Cette décision ne remet pas en question la qualité de votre parcours. 
+            Nous vous encourageons vivement à consulter régulièrement nos offres et à postuler à celles qui correspondent à vos compétences et aspirations.
+          </p>
+    
+          <p>
+            Nous vous souhaitons plein succès dans la suite de vos démarches professionnelles.
+          </p>
+    
+          <p style="margin-top: 30px;">
+            Bien cordialement,<br/>
+            <strong>L’équipe Recrutement</strong><br/>
+            Tradrly
+          </p>
+        </div>
+      `,
     };
-
+    
     const info = await transporter.sendMail(mailOptions);
     res.status(200).json({ message: "Email envoyé avec succès!", info });
-    const post = await Post.findByIdAndDelete(req.params.id);
+    await Post.findByIdAndUpdate(req.params.id, { status: 'refused' });
+
+   
   } catch (error) {
     console.error("Erreur lors de l'envoi de l'email:", error);
     res
@@ -243,65 +266,74 @@ exports.refuser = async (req, res) => {
 
 exports.accepter = async (req, res) => {
   try {
-    const poste = await Post.findById(req.params.id).populate("jobId");
+    // Validate post ID
+    const postId = req.params.id;
+    if (!postId.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({ message: "ID de candidature invalide." });
+    }
+
+    // Find post and populate jobId
+    const poste = await Post.findById(postId).populate("jobId");
     if (!poste) {
       return res.status(404).json({ message: "Candidature non trouvée." });
     }
     if (!poste.jobId) {
-      return res
-        .status(404)
-        .json({ message: "Offre d'emploi associée non trouvée." });
+      return res.status(404).json({ message: "Offre d'emploi associée non trouvée." });
     }
     if (poste.testCompleted) {
-      return res
-        .status(403)
-        .json({ message: "Vous avez déjà passé le test." });
+      return res.status(403).json({ message: "Vous avez déjà passé le test." });
     }
 
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: "manelfkih123@gmail.com",
-        pass: process.env.GMAIL_APP_PASSWORD,
-      },
-    });
+    // Generate and hash password
+    const plaintextPassword = generatePassword(8); // Increased length for security
+    const salt = await bcrypt.genSalt(10); // Increased salt rounds for security
+    const hashedPassword = await bcrypt.hash(plaintextPassword, salt);
 
+    // Update post with hashed password and invitation status
+    poste.password = hashedPassword;
+    
+    await poste.save();
+
+    // Send email with plaintext password
     const mailOptions = {
-      from: "manelfkih123@gmail.com",
+      from: `"Tradrly Recrutement" <${process.env.EMAIL_USER}>`,
       to: poste.email,
-      subject: `Réponse à votre candidature pour le poste ${poste.jobId.titre}`,
-      html: `Bonjour ${poste.name},<br><br>
-      Nous vous remercions de l'intérêt que vous portez à notre société « Tradrly » en postulant au poste de ${poste.jobId.titre}. Après une étude attentive de votre candidature, nous vous invitons à passer un test pour évaluer vos compétences.<br><br>
-      Veuillez trouver ci-dessous votre mot de passe généré pour la plateforme Tradrly :<br><br>
-      Mot de passe : ${poste.password}<br><br>
-      <b>Cordialement,</b><br>
-      L'équipe de recrutement<br>
-      Tradrly<br><br>
-      <a href="http://localhost:3000/test/${req.params.id}" target="_blank">Cliquez ici pour accéder à votre test</a>`,
+      subject: `Invitation au test pour le poste de ${poste.jobId.titre}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h2 style="color: #4F46E5;">Bonjour ${poste.name},</h2>
+          <p>Nous vous remercions pour votre candidature au poste de <strong>${poste.jobId.titre}</strong> chez Tradrly. Après examen de votre dossier, nous vous invitons à passer un test technique pour évaluer vos compétences.</p>
+          <p>Veuillez utiliser le mot de passe suivant pour accéder à la plateforme :</p>
+          <p style="font-size: 18px; font-weight: bold; color: #4F46E5;">${plaintextPassword}</p>
+          <p>
+            <a href="http://localhost:3000/test/${postId}" style="display: inline-block; padding: 10px 20px; background-color: #4F46E5; color: #fff; text-decoration: none; border-radius: 5px;">Accéder au test</a>
+          </p>
+          <p>Nous vous souhaitons bonne chance !</p>
+          <p style="margin-top: 20px;">
+            <strong>Cordialement,</strong><br>
+            L'équipe de recrutement<br>
+            Tradrly
+          </p>
+        </div>
+      `,
     };
 
-    const info = await transporter.sendMail(mailOptions);
-    res
-      .status(200)
-      .json({ message: "Email d'invitation au test envoyé avec succès!", info });
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ message: "Email d'invitation au test envoyé avec succès !" });
   } catch (error) {
     console.error("Erreur lors de l'envoi de l'email:", error);
-    res
-      .status(500)
-      .json({ message: "Erreur lors de l'envoi de l'email", error });
+    if (error.name === "MongoError") {
+      return res.status(500).json({ message: "Erreur de base de données." });
+    }
+    if (error.code === "EAUTH") {
+      return res.status(500).json({ message: "Erreur d'authentification email." });
+    }
+    res.status(500).json({ message: "Erreur serveur lors de l'envoi de l'email." });
   }
-};
-
-function generatePassword(length) {
-  const charset =
-    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = crypto.randomInt(0, charset.length);
-    password += charset[randomIndex];
-  }
-  return password;
 }
+
+
 
 exports.addPostWithoutOffre = async (req, res) => {
   try {
@@ -362,22 +394,27 @@ exports.addPostWithoutOffre = async (req, res) => {
 
 exports.getPostWithoutOffre = async (req, res) => {
   try {
+    // Récupération des candidatures sans offre associée
     const postes = await Post.find({ jobId: null });
-    if (!postes || postes.length === 0) {
-      return res.status(404).json({ message: "Aucune candidature trouvée" });
+
+    // Si aucun résultat
+    if (!postes ) {
+      return res.json({ message: "Aucune candidature trouvée." });
     }
 
-    const postsWithCvUrls = postes.map((post) => ({
-      ...post._doc,
-      cv_local_url: `${req.protocol}://${req.get(
-        "host"
-      )}/uploads/${path.basename(post.cv_local_url)}`,
-      cv_google_drive_url: post.cv_google_drive_url, // Déjà stocké dans MongoDB
-    }));
+    // Formatage des URLs de CV (local et Google Drive)
+    const postsFormatted = postes.map((post) => {
+      return {
+        ...post._doc,
+        cv_local_url: `${req.protocol}://${req.get("host")}/uploads/${path.basename(post.cv_local_url)}`,
+        cv_google_drive_url: post.cv_google_drive_url || null,
+      };
+    });
 
-    res.status(200).json(postsWithCvUrls);
+    return res.status(200).json(postsFormatted);
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+    console.error("Erreur lors de la récupération des candidatures sans offre :", error);
+    return res.status(500).json({ message: "Erreur interne du serveur", error: error.message });
   }
 };
 exports.accepterDemande = async (req, res) => {
@@ -468,20 +505,49 @@ Tradrly`,
   }
 };
 
+
+
 exports.loginCandidat = async (req, res) => {
   const { email, password } = req.body;
-  console.log("Données reçues :", req.body);
 
   try {
-    const candidat = await Post.findOne({ email, password });
-
-    if (!candidat) {
-      return res.status(404).json({ message: "Candidat non trouvé !" });
+    // Validate input
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email et mot de passe sont requis' });
     }
 
-    res.status(200).json({ candidat });
+    // Find candidate by email
+    const candidat = await Post.findOne({ email });
+    if (!candidat) {
+      return res.status(400).json({ message: 'Utilisateur non trouvé' });
+    }
+
+    // Debug password comparison
+    console.log('Input password:', password);
+    console.log('Stored hashed password:', candidat.password);
+
+    // Compare provided password with hashed password
+    const isMatch = await bcrypt.compare(password, candidat.password);
+    console.log('Password match:', isMatch);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Mot de passe incorrect' });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: candidat._id, email: candidat.email },
+      process.env.JWT_SECRET_KEY,
+      { expiresIn: '1h' }
+    );
+
+    // Send success response with token
+    return res.status(200).json({
+     
+      candidat
+    });
   } catch (error) {
-    res.status(500).json({ message: "Erreur serveur", error: error.message });
+    console.error('Erreur lors de la connexion:', error);
+    return res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
 // Marque le test comme complété
@@ -510,4 +576,12 @@ exports.verifier = async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Erreur lors de la récupération du post", error });
   }
+};
+const generatePassword = (length) => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
 };

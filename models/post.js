@@ -34,6 +34,11 @@ const PostSchema = new mongoose.Schema({
       },
       password:{type:String,require},
       testCompleted: { type: Boolean, default: false }, 
+      status: {
+        type: String,
+        enum: ['pending', 'refused', 'testPassed'],
+        default: 'pending'
+      },
 
 
     
