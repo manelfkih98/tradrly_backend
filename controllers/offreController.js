@@ -3,7 +3,8 @@ const Departement = require("../models/departement");
 
 exports.addOffreStage = async (req, res) => {
   try {
-    const { titre, description, status, date_limite, departement_name } =
+    const { titre, description, status, date_limite, departement_name,requirements } =
+    
       req.body;
     const departement = await Departement.findOne({
       NameDep: departement_name,
@@ -21,6 +22,7 @@ exports.addOffreStage = async (req, res) => {
       description,
       status: status ?? true,
       date_limite,
+      requirements,
       departement: departement.id,
       type: "stage",
     });
@@ -33,7 +35,7 @@ exports.addOffreStage = async (req, res) => {
 };
 exports.addOffreJob = async (req, res) => {
   try {
-    const { titre, description, status, date_limite, departement_name } =
+    const { titre, description, status, date_limite, departement_name ,requirements} =
       req.body;
     const departement = await Departement.findOne({
       NameDep: departement_name,
@@ -53,6 +55,7 @@ exports.addOffreJob = async (req, res) => {
       date_limite,
       departement: departement.id,
       type: "job",
+      requirements,
     });
 
     await newOffre.save();
@@ -212,5 +215,41 @@ exports.activateOffre = async (req, res) => {
     return res.status(500).json({ message: "Erreur serveur", error: error.message });
   }
 };
+exports.getOffreStageActive = async (req, res) => {
+  try {
+    // On filtre les offres de type "stage" avec le status "true"
+    const OffreStageActive = await Offre.find({ type: "stage", status: true }).populate("departement");
+
+    if (OffreStageActive.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Aucune offre de stage trouvée." });
+    }
+
+    return res.status(200).json({  OffreStageActive });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Erreur serveur", error: error.message });
+  }
+};
+exports.getOffreJobActive = async (req, res) => {
+  try {
+    // On filtre les offres de type "job" avec le status "true"
+    const OffreJobActive = await Offre.find({ type: "job", status: true }).populate("departement");
+
+    if (OffreJobActive.length === 0) {
+      return res.status(404).json({ message: "Aucune offre de job trouvée" });
+    }
+
+    return res.status(200).json({  OffreJobActive });
+  } catch (error) {
+    return res
+      .status(500)
+      .json({ message: "Erreur serveur", error: error.message });
+  }
+};
+
+
 
 

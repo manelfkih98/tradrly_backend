@@ -74,6 +74,7 @@ exports.addPost = async (req, res) => {
       }
 
       const { name, email, number, niveau, jobId } = req.body;
+      console.log(req.body);
 
       if (!name || !email || !number || !niveau || !jobId) {
         return res.status(400).json({
@@ -364,7 +365,7 @@ exports.addPostWithoutOffre = async (req, res) => {
 
       const googleDriveCvUrl = await uploadFileToDrive(filePath, fileName);
 
-      const password = generatePassword(12);
+      
 
       const newPost = new Post({
         name,
@@ -373,7 +374,9 @@ exports.addPostWithoutOffre = async (req, res) => {
         niveau,
         cv_local_url: localCvUrl,
         cv_google_drive_url: googleDriveCvUrl,
-        password,
+        password: "",
+        jobId: null, 
+
       });
 
       await newPost.save();
@@ -471,32 +474,41 @@ exports.refuserDemande = async (req, res) => {
       service: "gmail",
       auth: {
         user: "manelfkih123@gmail.com",
-        pass: "uwze prbc lohc kfzh", 
+        pass: process.env.GMAIL_APP_PASSWORD,
       },
     });
 
     const mailOptions = {
-      from: "manelfkih13@gmail.com",
+      from: `"Tradrly Recrutement" <${process.env.EMAIL_USER}>`,
+   
       to: poste.email,
-      subject: "Réponse à votre candidature chez Tradrly",
-      text: `Bonjour ${poste.name},
-
-Nous avons bien reçu votre demande de candidature spontanée. Après une étude attentive, nous sommes au regret de vous informer que nous ne pouvons pas y donner une suite favorable pour le moment.
-
-Nous vous remercions de l’intérêt porté à notre entreprise et vous souhaitons plein succès dans vos recherches.
-
-Cordialement,
-
-L'équipe de recrutement
-Tradrly`,
+      subject: `Suite à votre candidature spontanée`,
+      html: `
+      <div style="font-family: Arial, sans-serif; font-size: 15px; color: #333; line-height: 1.6;">
+        <p>Bonjour <strong>${poste.name}</strong>,</p>
+        <p>
+          Nous vous remercions pour l’intérêt que vous portez à <strong>Tradrly</strong>.
+        </p>
+        <p>
+          Après avoir étudié votre dossier , nous sommes au regret de vous informer que nous n’avons pas de poste correspondant à votre profil à pourvoir actuellement.
+        </p>
+        <p>
+          Nous vous invitons à consulter régulièrement nos offres ou à nous transmettre une nouvelle candidature pour d’autres opportunités.
+        </p>
+        <p style="margin-top: 30px;">
+          Bien cordialement,<br/>
+          <strong>L’équipe Recrutement Tradrly</strong>
+        </p>
+      </div>`,
     };
 
     const info = await transporter.sendMail(mailOptions);
     res
       .status(200)
       .json({ message: "Email de refus envoyé avec succès.", info });
+      poste.status = "refused";
+      await poste.save(); 
 
-    await Post.findByIdAndDelete(req.params.id);
   } catch (error) {
     console.error("Erreur lors de l'envoi de l'email:", error);
     res
@@ -550,7 +562,6 @@ exports.loginCandidat = async (req, res) => {
     return res.status(500).json({ message: 'Erreur serveur', error: error.message });
   }
 };
-// Marque le test comme complété
 exports.markTestCompleted = async (req, res) => {
   try {
     const poste = await Post.findById(req.params.id);
@@ -565,7 +576,6 @@ exports.markTestCompleted = async (req, res) => {
   }
 };
 
-// Vérifie si le test a été fait
 exports.verifier = async (req, res) => {
   try {
     const poste = await Post.findById(req.params.id);

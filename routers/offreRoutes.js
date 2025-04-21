@@ -1,6 +1,6 @@
 const express = require('express');
 
-const { addOffreStage,addOffreJob,getAllOffres,getOffreById ,updateOffre,activateOffre,deleteOffre,getOffreStage,getOffreJob,deactivateOffre} = require('../controllers/offreController');
+const { addOffreStage,addOffreJob,getAllOffres,getOffreById ,updateOffre,activateOffre,deleteOffre,getOffreStage,getOffreJob,deactivateOffre,getOffreJobActive,getOffreStageActive} = require('../controllers/offreController');
 //const auth = require('../middleware/auth');
 const router = express.Router();
 router.post('/addOffreStage', addOffreStage);
@@ -13,5 +13,7 @@ router.get('/offreByStage',getOffreStage)
 router.get('/offreByJob',getOffreJob)
 router.put('/deactivateOffre/:id_offre',deactivateOffre)
 router.put('/activateOffre/:id_offre',activateOffre)
+router.get('/offreByStageActive',getOffreStageActive)
+router.get('/offreByJobActive',getOffreJobActive)
 
 module.exports = router;

@@ -31,7 +31,10 @@ const offreShema=new mongoose.Schema({
         type: String,
         enum: ['job', 'stage'],
         required: true
-    }
+    },
+    requirements: { type: [String], required: true },
+
+
 }, { timestamps: true });
 
 
