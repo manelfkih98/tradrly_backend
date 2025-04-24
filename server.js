@@ -1,9 +1,13 @@
 require("dotenv").config();
 
 const express = require("express");
+const http = require("http"); // Ajouté
+const { Server } = require("socket.io"); // Ajouté
+
 const connectDB = require('./config/database');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+
 const adminRoutes = require("./routers/adminRoutes");
 const departRoutes = require("./routers/departementRoutes");
 const offreRoutes = require("./routers/offreRoutes");
@@ -16,13 +20,29 @@ const questionRoutes = require('./routers/questionRoutes');
 const qcmRoutes = require('./routers/qcmRoutes');
 const teamMemberRoutes = require('./routers/teamMemberRoutes');
 const contactRoutes = require('./routers/contactRoutes');
-const app = express();
-app.use(cookieParser());
+
 const path = require('path');
+
+const app = express();
+const server = http.createServer(app); // Utiliser HTTP Server
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000", // à adapter selon ton front React admin
+    methods: ["GET", "POST"]
+  }
+});
+
+// === Connexion Socket.IO ===
+io.on("connection", (socket) => {
+  console.log("✅ Admin connecté via Socket.IO :", socket.id);
+});
+
+app.set("socketio", io); 
+
+app.use(cookieParser());
 app.use(cors());
 app.use(express.json());
 connectDB();
-
 
 const PORT = process.env.PORT || 3000;
 const BASE_URL = "/tradrly/api/v1";  
@@ -40,6 +60,7 @@ app.use(`${BASE_URL}/qcm`, qcmRoutes);
 app.use(`${BASE_URL}/team`, teamMemberRoutes);
 app.use(`${BASE_URL}/contact`, contactRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-app.listen(PORT, () => {
-    console.log(`Serveur démarré sur le port ${PORT}, accessible à http://localhost:${PORT}${BASE_URL}`);
+
+server.listen(PORT, () => {
+  console.log(`🚀 Serveur démarré sur http://localhost:${PORT}${BASE_URL}`);
 });

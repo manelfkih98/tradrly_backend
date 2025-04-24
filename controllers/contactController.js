@@ -1,17 +1,14 @@
 const Contact = require('../models/contact'); 
 
 
+
 exports.createContact = async (req, res) => {
     try {
         const { object, email, subject } = req.body;
         if (!object || !email || !subject) {
             return res.status(400).json({ message: "All fields are required." });
         }
-        
-        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
-        if (!emailRegex.test(email)) {
-            return res.status(400).json({ message: "Invalid email format." });
-        }
+
         // Create a new contact
         const contact = new Contact({
             object,
@@ -19,12 +16,20 @@ exports.createContact = async (req, res) => {
             subject,
         });
         await contact.save();
+        const io = req.app.get("socketio");
+        
+        // Emitting a new message event for the frontend
+        io.emit("nouveau-message", {
+            email,
+            contenu: subject,
+        });
+
         res.status(201).json({ message: "Contact created successfully", contact });
-     
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 };
+
 
 exports.getAllContacts = async (req, res) => {
     try {

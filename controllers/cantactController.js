@@ -1,14 +1,44 @@
 const Cantact = require('../models/contact'); 
 
 // Create a new cantact
-exports.createCantact = async (req, res) => {
+exports.createContact = async (req, res) => {
     try {
-        const cantact = await Cantact.create(req.body);
-        res.status(201).json(cantact);
+        const { object, email, subject } = req.body;
+        console.log("Received data:", req.body);
+
+        // Validate the input fields
+        if (!object || !email || !subject) {
+            return res.status(400).json({ message: 'All fields are required' });
+        }
+
+        // Validate email format
+        if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+            return res.status(400).json({ message: 'Invalid email format' });
+        }
+
+        // Create a new contact record
+        const contact = await Contact.create({
+            object,
+            email,
+            subject,
+        });
+
+        // Respond with the created contact
+        res.status(201).json(contact);
+
+        // Emit a socket event for the new contact message
+        const io = req.app.get("socketio");
+        io.emit("nouveau-message", {
+            email,
+            contenu: subject,
+        });
+
     } catch (error) {
         res.status(400).json({ error: error.message });
     }
 };
+
+  
 
 
 exports.getAllCantacts = async (req, res) => {

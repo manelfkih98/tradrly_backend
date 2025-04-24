@@ -1,4 +1,4 @@
-const QCM = require("../models/QCM");
+
 const question = require("../models/question");
 const Departement = require("../models/departement");
 const Post = require("../models/post");
@@ -6,6 +6,7 @@ const { all } = require("../routers/adminRoutes");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
+const QCM = require("../models/qcm");
 
 
 
@@ -42,7 +43,7 @@ exports.generatQcm = async (req, res) => {
       });
     }
 
-    // Création du QCM
+   
     const newQCM = new QCM({
       post_id: postId,
       questions: questions.map((q) => q._id),
@@ -131,15 +132,15 @@ exports.getAllQcm = async (req, res) => {
   }
 };
 
-const generatePassword = (length) => {
-  const chars =
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let password = "";
+function generatePassword(length = 8) {
+  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let password = '';
   for (let i = 0; i < length; i++) {
-    password += chars.charAt(Math.floor(Math.random() * chars.length));
+    password += chars[Math.floor(Math.random() * chars.length)];
   }
   return password;
-};
+}
+
 exports.updateResultat = async (req, res) => {
   try {
     const { id } = req.params;
@@ -226,7 +227,8 @@ exports.generatQcmDemande = async (req, res) => {
       },
     });
 
-    const plaintextPassword = generatePassword(8); // Increased length for security
+    const plaintextPassword = generatePassword(8);
+    // Increased length for security
     const hashedPassword = await bcrypt.hash(plaintextPassword, 10);
 
     // Update post with hashed password and invitation status

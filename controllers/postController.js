@@ -1,4 +1,5 @@
 const Post = require("../models/post");
+const offre = require("../models/offre");
 const { google } = require("googleapis");
 const fs = require("fs");
 const path = require("path");
@@ -7,6 +8,7 @@ const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const jwt = require('jsonwebtoken');
+const { title } = require("process");
 
 const auth = new google.auth.GoogleAuth({
   keyFile: "C:/teest_tradrly/meniproject.json",
@@ -90,9 +92,6 @@ exports.addPost = async (req, res) => {
 
       const googleDriveCvUrl = await uploadFileToDrive(filePath, fileName);
 
-      /*const password = generatePassword(5);
-      const salt = await bcrypt.genSalt(5);
-      const hashedPassword = await bcrypt.hash(password, salt);*/
 
       const newPost = new Post({
         name,
@@ -106,9 +105,23 @@ exports.addPost = async (req, res) => {
        // password: hashedPassword,
         
       });
-
+      const job = await offre.findById(jobId);
+      if (!job) {
+        return res.status(404).json({ message: "Offre d'emploi non trouvée." });
+      }
+      console.log(job);
+      
+      const title = job.titre;
+      
       await newPost.save();
-
+      
+      const io = req.app.get("socketio");
+      io.emit("nouvelle-candidature", {
+        nom: name, 
+        offre: title, 
+        date: new Date()
+      });
+      
       res.status(201).json({
         message: "Candidature ajoutée avec succès",
         post: newPost,
@@ -385,6 +398,13 @@ exports.addPostWithoutOffre = async (req, res) => {
         message: "Candidature sans offre ajoutée avec succès",
         post: newPost,
       });
+      const io = req.app.get("socketio");
+      io.emit("nouvelle-demande", {
+        nom: name, 
+        date: new Date()
+      });
+      
+
     });
   } catch (error) {
     console.error(error);
@@ -538,24 +558,14 @@ exports.loginCandidat = async (req, res) => {
     console.log('Input password:', password);
     console.log('Stored hashed password:', candidat.password);
 
-    // Compare provided password with hashed password
+   
     const isMatch = await bcrypt.compare(password, candidat.password);
     console.log('Password match:', isMatch);
-    if (!isMatch) {
-      return res.status(401).json({ message: 'Mot de passe incorrect' });
-    }
+  
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { id: candidat._id, email: candidat.email },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: '1h' }
-    );
-
-    // Send success response with token
+   
     return res.status(200).json({
-     
-      candidat
+     candidat
     });
   } catch (error) {
     console.error('Erreur lors de la connexion:', error);
