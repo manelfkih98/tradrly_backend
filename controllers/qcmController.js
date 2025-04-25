@@ -116,14 +116,12 @@ exports.generatQcm = async (req, res) => {
 exports.getAllQcm = async (req, res) => {
   try {
     const allQCM = await QCM.find().populate("post_id");
-    const filteredQCM = allQCM.filter(qcm => qcm.post_id?.testCompleted === false);
+    
 
 
-    if (!filteredQCM || filteredQCM.length === 0) {
-      return res.status(404).json({ message: "Aucun QCM disponible." });
-    }
+   
 
-    return res.status(200).json(filteredQCM);
+    return res.status(200).json(allQCM);
   } catch (error) {
     console.error("Erreur lors de la récupération des QCM :", error);
     return res

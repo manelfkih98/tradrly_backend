@@ -1,8 +1,8 @@
 require("dotenv").config();
 
 const express = require("express");
-const http = require("http"); // Ajouté
-const { Server } = require("socket.io"); // Ajouté
+const http = require("http"); 
+const { Server } = require("socket.io"); 
 
 const connectDB = require('./config/database');
 const cors = require('cors');
@@ -20,14 +20,15 @@ const questionRoutes = require('./routers/questionRoutes');
 const qcmRoutes = require('./routers/qcmRoutes');
 const teamMemberRoutes = require('./routers/teamMemberRoutes');
 const contactRoutes = require('./routers/contactRoutes');
+const dashbordRoutes = require('./routers/dashbordRoutes');
 
 const path = require('path');
 
 const app = express();
-const server = http.createServer(app); // Utiliser HTTP Server
+const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000", // à adapter selon ton front React admin
+    origin: "http://localhost:3000", 
     methods: ["GET", "POST"]
   }
 });
@@ -59,6 +60,7 @@ app.use(`${BASE_URL}/question`, questionRoutes);
 app.use(`${BASE_URL}/qcm`, qcmRoutes);
 app.use(`${BASE_URL}/team`, teamMemberRoutes);
 app.use(`${BASE_URL}/contact`, contactRoutes);
+app.use(`${BASE_URL}/dashboard`, dashbordRoutes);
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 server.listen(PORT, () => {

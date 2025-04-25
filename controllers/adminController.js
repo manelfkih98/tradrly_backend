@@ -57,7 +57,7 @@ const loginAdmin = async (req, res) => {
         await admin.save();
 
         res.cookie("refreshToken", refreshToken, { httpOnly: true, secure: true, sameSite: "Strict" });
-        res.json({ message: "Connexion réussie", accessToken });
+        res.json({ message: "Connexion réussie", accessToken ,fullName: admin.fullName });
     } catch (error) {
         res.status(500).json({ message: "Erreur serveur", error });
     }
