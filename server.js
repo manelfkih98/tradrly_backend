@@ -61,6 +61,8 @@ app.use(`${BASE_URL}/qcm`, qcmRoutes);
 app.use(`${BASE_URL}/team`, teamMemberRoutes);
 app.use(`${BASE_URL}/contact`, contactRoutes);
 app.use(`${BASE_URL}/dashboard`, dashbordRoutes);
+
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 server.listen(PORT, () => {

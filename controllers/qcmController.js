@@ -1,4 +1,3 @@
-
 const question = require("../models/question");
 const Departement = require("../models/departement");
 const Post = require("../models/post");
@@ -6,9 +5,8 @@ const { all } = require("../routers/adminRoutes");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const QCM = require("../models/qcm");
-
-
+const QCM = require("../models/QCM");
+const Offre=require("../models/offre")
 
 exports.generatQcm = async (req, res) => {
   try {
@@ -43,7 +41,6 @@ exports.generatQcm = async (req, res) => {
       });
     }
 
-   
     const newQCM = new QCM({
       post_id: postId,
       questions: questions.map((q) => q._id),
@@ -63,12 +60,11 @@ exports.generatQcm = async (req, res) => {
       },
     });
 
-    const plaintextPassword = generatePassword(8); // Increased length for security
-    const hashedPassword = await bcrypt.hash(plaintextPassword, 10);
 
-    // Update post with hashed password and invitation status
-    post.password = hashedPassword;
-    await post.save();
+
+    const plaintextPassword = generatePassword(); 
+
+   
 
     const mailOptions = {
       from: `"Tradrly Recrutement" <${process.env.EMAIL_USER}>`,
@@ -99,7 +95,15 @@ exports.generatQcm = async (req, res) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    await Post.findByIdAndUpdate(postId, { status: 'testPassed' });
+     // Increased length for security
+     const hashedPassword = await bcrypt.hash(plaintextPassword, 10);
+    
+     await Post.findByIdAndUpdate(postId, { password:hashedPassword });
+     // Log the plaintext password and hashed password for debugging
+          console.log("Mot de passe en clair :", plaintextPassword);
+          console.log("Mot de passe hashé :", hashedPassword);
+    
+    await Post.findByIdAndUpdate(postId, { status: "testPassed" });
 
     return res.status(201).json({
       message: "QCM généré et email envoyé avec succès !",
@@ -115,11 +119,14 @@ exports.generatQcm = async (req, res) => {
 };
 exports.getAllQcm = async (req, res) => {
   try {
-    const allQCM = await QCM.find().populate("post_id");
-    
-
-
-   
+    const allQCM = await QCM.find().populate({
+      path: "post_id",
+      populate: {
+        path: "jobId", 
+       
+        select: "titre", 
+      },
+    });
 
     return res.status(200).json(allQCM);
   } catch (error) {
@@ -130,9 +137,11 @@ exports.getAllQcm = async (req, res) => {
   }
 };
 
+
 function generatePassword(length = 8) {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let password = '';
+  const chars =
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let password = "";
   for (let i = 0; i < length; i++) {
     password += chars[Math.floor(Math.random() * chars.length)];
   }
@@ -192,12 +201,7 @@ exports.generatQcmDemande = async (req, res) => {
       return res.status(404).json({ message: "Post non trouvé." });
     }
 
-    
-
-    const questions = await question.aggregate([
-      
-      { $sample: { size: 4 } },
-    ]);
+    const questions = await question.aggregate([{ $sample: { size: 4 } }]);
 
     if (!questions.length) {
       return res.status(404).json({
@@ -239,7 +243,7 @@ exports.generatQcmDemande = async (req, res) => {
       subject: `Invitation au test `,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h2 >Bonjour ${post.name},</h2>
+          <h2 >Bonjour ${post.nom} ${post.prenom},</h2>
           <p>Nous vous remercions pour votre candidature au poste  chez Tradrly. Après examen de votre dossier, nous vous invitons à passer un test technique pour évaluer vos compétences.</p>
          <p>Veuillez utiliser le mot de passe suivant pour accéder à la plateforme :</p>
 
@@ -262,14 +266,13 @@ exports.generatQcmDemande = async (req, res) => {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    await Post.findByIdAndUpdate(postId, { status: 'testPassed' });
+    await Post.findByIdAndUpdate(postId, { status: "testPassed" });
 
     return res.status(201).json({
       message: "QCM généré et email envoyé avec succès !",
       qcm: populatedQCM,
       emailInfo: info,
     });
-    
   } catch (error) {
     console.error("Erreur lors de la création du QCM :", error);
     return res
